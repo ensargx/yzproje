@@ -103,7 +103,6 @@ class TargetDrivenDatasetGenerator:
         return None
 
     def generate_sampleE(self, target_dist, num_points):
-        # DÜZELTME: is_odd bilgisini artık rastgele değil, gelen nokta sayısından hesaplıyoruz
         is_odd = (num_points % 2 != 0)
         target_corner = (0, 0) if is_odd else (self.grid_size - 1, self.grid_size - 1)
 
@@ -149,12 +148,9 @@ class TargetDrivenDatasetGenerator:
         total_classes = max_val - min_val + 1
 
         if is_conditional:
-            # DÜZELTME: E problemi için (1-10 nokta) hem Train hem Test setinin ayrı ayrı 10'un katı olması ŞARTTIR.
-            # Yoksa %80 - %20 bölüşümü (örn: 30'u 24 ve 6 diye bölerken) döngüyü tam ortadan keser.
             train_per_class = (((self.min_total_train // total_classes) + 9) // 10) * 10
             test_per_class = (((self.min_total_test // total_classes) + 9) // 10) * 10
 
-            # Alt sınır koruması (döngü tamamlansın diye sınıf başı en az 10 örnek)
             train_per_class = max(10, train_per_class)
             test_per_class = max(10, test_per_class)
 
@@ -288,7 +284,6 @@ class TargetDrivenDatasetGenerator:
         datasetC, datasetD = self.build_dataset_CandD()
 
         print("Problem E sınırları hesaplanıyor...")
-        # DÜZELTME: Pratik sınırları hesaplarken en zorlayıcı olan 10 noktalı durum için test ediyoruz
         minE, maxE = self.find_practical_limits(lambda d: self.generate_sampleE(d, 10), range(0, 40))
         datasetE = self.build_balanced_dataset("Problem E", self.generate_sampleE, minE, maxE, is_conditional=True)
 
