@@ -22,8 +22,8 @@ def get_points_at_exact_distance(center_point, target_dist):
 class TargetDrivenDatasetGenerator:
     def __init__(self, seed=SEED):
         self.grid_size = 25
-        self.min_total_train = 800
-        self.min_total_test = 200
+        self.min_total_train = 1024
+        self.min_total_test = 256
         self.rng = np.random.default_rng(seed)
 
     def generate_sampleA(self, target_dist):
