@@ -31,9 +31,10 @@ class SelfAttention(nn.Module):
 
 
 class ProblemRelationCNN(nn.Module):
-    def __init__(self, aggregation="min"):
+    def __init__(self, aggregation="min", include_self_pairs=True):
         super().__init__()
         self.aggregation = aggregation
+        self.include_self_pairs = include_self_pairs
 
         # Nesneler (x, y) koordinatlarından oluşuyor.
         # Çiftler ise (x_i, y_i, x_j, y_j) şeklinde 4 boyutlu olacak.
@@ -73,6 +74,13 @@ class ProblemRelationCNN(nn.Module):
         # g_theta ile ilişkileri öğren
         g_out = self.g_theta(pairs)
 
+        if not self.include_self_pairs:
+            mask = torch.eye(5, dtype=torch.bool, device=x.device).view(1, 5, 5, 1)
+            if self.aggregation == "max":
+                g_out = g_out.masked_fill(mask, float('-inf'))
+            else:
+                g_out = g_out.masked_fill(mask, float('inf'))
+
         if self.aggregation == "max":
             f_in = torch.amax(g_out, dim=(1, 2))
         else:
@@ -85,7 +93,7 @@ class ProblemRelationCNN(nn.Module):
 
 class ProblemACNN(ProblemRelationCNN):
     def __init__(self):
-        super().__init__(aggregation="min")
+        super().__init__(aggregation="min", include_self_pairs=False)
 
 
 class ProblemBCNN(ProblemRelationCNN):

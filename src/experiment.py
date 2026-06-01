@@ -15,7 +15,7 @@ import torch.optim as optim
 from torch.utils.data import DataLoader, TensorDataset
 
 from src.models import get_model
-from util import create_matrix_figure, load_dataset
+from src.util import create_matrix_figure, load_dataset
 
 
 @dataclass
@@ -25,7 +25,6 @@ class ProblemConfig:
     batch_size: int
     epochs: int
     log_interval: int
-    tolerance: float = 1.0
 
 
 PROBLEM_CONFIGS = {
@@ -119,7 +118,6 @@ def train_one_epoch(model, train_loader, criterion, optimizer, device, config):
     model.train()
     train_loss = 0.0
     train_correct = 0
-    train_close = 0
     train_error_sum = 0.0
     total_samples = 0
 
@@ -144,7 +142,6 @@ def train_one_epoch(model, train_loader, criterion, optimizer, device, config):
                 predicted_labels = torch.round(predictions)
                 abs_errors = torch.abs(predicted_labels - batch_y)
                 train_correct += (predicted_labels == batch_y).sum().item()
-                train_close += (abs_errors <= config.tolerance).sum().item()
                 train_error_sum += abs_errors.sum().item()
 
             total_samples += batch_y.numel()
@@ -155,7 +152,6 @@ def train_one_epoch(model, train_loader, criterion, optimizer, device, config):
     }
 
     if config.task_type != "classification":
-        metrics["train_close_accuracy"] = train_close / total_samples
         metrics["train_mae"] = train_error_sum / total_samples
 
     return metrics
@@ -164,7 +160,6 @@ def train_one_epoch(model, train_loader, criterion, optimizer, device, config):
 def evaluate(model, test_loader, device, config):
     model.eval()
     test_correct = 0
-    test_close = 0
     test_error_sum = 0.0
     test_total = 0
 
@@ -182,7 +177,6 @@ def evaluate(model, test_loader, device, config):
                 predicted_labels = torch.round(predictions)
                 abs_errors = torch.abs(predicted_labels - batch_y)
                 test_correct += (predicted_labels == batch_y).sum().item()
-                test_close += (abs_errors <= config.tolerance).sum().item()
                 test_error_sum += abs_errors.sum().item()
 
             test_total += batch_y.numel()
@@ -192,7 +186,6 @@ def evaluate(model, test_loader, device, config):
     }
 
     if config.task_type != "classification":
-        metrics["test_close_accuracy"] = test_close / test_total
         metrics["test_mae"] = test_error_sum / test_total
 
     return metrics
@@ -214,7 +207,7 @@ def print_epoch(epoch, config, metrics):
             f"Epoch [{epoch+1}/{config.epochs}] | "
             f"Train Loss: {metrics['train_loss']:.4f} | "
             f"Test Error: {metrics['test_mae']:.4f} | "
-            f"Test Acc(±{int(config.tolerance)}): %{metrics['test_close_accuracy']*100:.1f}"
+            f"Test Acc: %{metrics['test_accuracy']*100:.1f}"
         )
 
 
@@ -353,8 +346,7 @@ def run_problem(problem_name, data_dir="data", results_dir="results", epochs=Non
             config.task_type,
             config.batch_size,
             int(epochs),
-            min(config.log_interval, max(1, int(epochs))),
-            config.tolerance
+            min(config.log_interval, max(1, int(epochs)))
         )
 
     result_dir = Path(results_dir) / config.problem_name
@@ -385,8 +377,6 @@ def run_problem(problem_name, data_dir="data", results_dir="results", epochs=Non
 
         pd.DataFrame(history).to_csv(log_path, index=False)
         print_epoch(epoch, config, metrics)
-
-    torch.save(model.state_dict(), result_dir / "model.pt")
 
     prediction_metrics = analyze_predictions(model, x_test, y_test, config, result_dir)
 
