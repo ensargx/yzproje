@@ -170,9 +170,9 @@ class ProblemDCNN(nn.Module):
 class ProblemECNN(nn.Module):
     def __init__(self, embedDim=32, hiddenDim=64):
         super().__init__()
-        
+
         self.pixelEmb = nn.Linear(3, embedDim)
-        
+
         self.parityEncoder = nn.Sequential(
             nn.Linear(1, hiddenDim),
             Sine(),
@@ -180,15 +180,15 @@ class ProblemECNN(nn.Module):
             Sine(),
             nn.Linear(hiddenDim, embedDim)
         )
-        
+
         self.attention = SelfAttention(embedDim)
-        
+
         self.distanceHead = nn.Sequential(
             nn.Linear(embedDim, hiddenDim),
             nn.ReLU(),
             nn.Linear(hiddenDim, 1)
         )
-        
+
         yCoords, xCoords = torch.meshgrid(torch.arange(25), torch.arange(25), indexing='ij')
         coords = torch.stack([xCoords.flatten(), yCoords.flatten()], dim=-1).float()
         self.register_buffer('coordsGrid', coords)
@@ -199,23 +199,23 @@ class ProblemECNN(nn.Module):
         xFlat = x.view(batchSize, 625, 1)
         batchCoords = self.coordsGrid.unsqueeze(0).expand(batchSize, -1, -1)
         xWithCoords = torch.cat([xFlat, batchCoords], dim=-1)
-        
+
         countFeature = torch.sum(xFlat, dim=1) 
         parityVector = self.parityEncoder(countFeature).unsqueeze(1)
-        
+
         pixelFeatures = self.pixelEmb(xWithCoords)
-        
+
         combinedFeatures = pixelFeatures + parityVector
-        
+
         combinedFeatures = combinedFeatures * xFlat
-        
+
         attnOut = self.attention(combinedFeatures)
-        
+
         attnOutMasked = attnOut.masked_fill(xFlat == 0, float('-inf'))
         pooledMax = torch.max(attnOutMasked, dim=1)[0]
-        
+
         final_out = self.distanceHead(pooledMax).squeeze(-1)
-        
+
         if self.training:
             return final_out
         else:
