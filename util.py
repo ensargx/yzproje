@@ -64,3 +64,26 @@ def plot_mat(matrix):
     ax.tick_params(axis='both', labelsize=8)
 
     plt.show()
+
+
+def create_matrix_figure(matrix):
+    h, w = matrix.shape
+
+    fig, ax = plt.subplots(figsize=(6, 6))
+
+    ax.imshow(matrix, cmap="Greys", interpolation="none")
+
+    # GRID
+    ax.set_xticks(np.arange(-0.5, w, 1), minor=True)
+    ax.set_yticks(np.arange(-0.5, h, 1), minor=True)
+    ax.grid(which="minor", color="black", linestyle='-', linewidth=0.5)
+
+    # KOORDİNATLAR
+    ax.set_xticks(np.arange(w))
+    ax.set_yticks(np.arange(h))
+    ax.set_xticklabels(np.arange(w))
+    ax.set_yticklabels(np.arange(h))
+
+    ax.tick_params(axis='both', labelsize=8)
+
+    return fig
