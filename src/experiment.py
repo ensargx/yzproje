@@ -36,6 +36,9 @@ PROBLEM_CONFIGS = {
 }
 
 
+DEFAULT_TRAIN_FRACTIONS = [0.25, 0.50, 1.00]
+
+
 def get_device():
     if torch.cuda.is_available():
         return torch.device("cuda")
@@ -49,6 +52,37 @@ def get_config(problem_name):
     if problem_name not in PROBLEM_CONFIGS:
         raise ValueError("Geçersiz problem adı! Lütfen 'A', 'B', 'C', 'D' veya 'E' kullanın.")
     return PROBLEM_CONFIGS[problem_name]
+
+
+def get_fraction_label(train_fraction):
+    return f"train_{int(round(train_fraction * 100))}pct"
+
+
+def validate_train_fraction(train_fraction):
+    train_fraction = float(train_fraction)
+    if train_fraction <= 0 or train_fraction > 1:
+        raise ValueError("train_fraction değeri 0 ile 1 arasında olmalı.")
+    return train_fraction
+
+
+def select_training_subset(x_train, y_train, train_fraction, seed=11337):
+    train_fraction = validate_train_fraction(train_fraction)
+    if train_fraction == 1.0:
+        return x_train, y_train
+
+    rng = np.random.default_rng(seed)
+    selected_indices = []
+
+    for label in sorted(np.unique(y_train)):
+        label_indices = np.where(y_train == label)[0]
+        subset_size = max(1, int(round(len(label_indices) * train_fraction)))
+        selected = rng.choice(label_indices, size=subset_size, replace=False)
+        selected_indices.extend(selected.tolist())
+
+    selected_indices = np.array(selected_indices)
+    selected_indices = rng.permutation(selected_indices)
+
+    return x_train[selected_indices], y_train[selected_indices]
 
 
 def create_loaders(x_train, y_train, x_test, y_test, batch_size):
@@ -338,8 +372,10 @@ def analyze_predictions(model, x_test, y_test, config, result_dir, random_sample
     }
 
 
-def run_problem(problem_name, data_dir="data", results_dir="results", epochs=None, seed=None):
+def run_problem(problem_name, data_dir="data", results_dir="results", epochs=None, seed=None, train_fraction=1.0):
     config = get_config(problem_name)
+    train_fraction = validate_train_fraction(train_fraction)
+
     if epochs is not None:
         config = ProblemConfig(
             config.problem_name,
@@ -349,13 +385,17 @@ def run_problem(problem_name, data_dir="data", results_dir="results", epochs=Non
             min(config.log_interval, max(1, int(epochs)))
         )
 
-    if seed:
+    if seed is not None:
         torch.manual_seed(seed)
 
-    result_dir = Path(results_dir) / config.problem_name
+    fraction_label = get_fraction_label(train_fraction)
+    result_dir = Path(results_dir) / config.problem_name / fraction_label
     result_dir.mkdir(parents=True, exist_ok=True)
 
     x_train, y_train, x_test, y_test = load_dataset(config.problem_name, folder_name=data_dir)
+    train_total = len(x_train)
+    subset_seed = seed if seed is not None else 11337
+    x_train, y_train = select_training_subset(x_train, y_train, train_fraction, seed=subset_seed)
     train_loader, test_loader = create_loaders(x_train, y_train, x_test, y_test, config.batch_size)
 
     device = get_device()
@@ -363,7 +403,10 @@ def run_problem(problem_name, data_dir="data", results_dir="results", epochs=Non
     criterion = get_criterion(config.task_type)
     optimizer = optim.AdamW(model.parameters())
 
-    print(f"\n===== Problem {config.problem_name} eğitiliyor ({device}) =====")
+    print(
+        f"\n===== Problem {config.problem_name} eğitiliyor "
+        f"({fraction_label}, {len(x_train)}/{train_total} örnek, {device}) ====="
+    )
 
     history = []
     log_path = result_dir / "loss_history.csv"
@@ -386,6 +429,10 @@ def run_problem(problem_name, data_dir="data", results_dir="results", epochs=Non
     final_metrics = {
         "problem": config.problem_name,
         "task_type": config.task_type,
+        "train_fraction": train_fraction,
+        "train_fraction_label": fraction_label,
+        "train_size": len(x_train),
+        "train_total": train_total,
         "epochs": config.epochs,
         **history[-1],
         **prediction_metrics,
@@ -396,14 +443,32 @@ def run_problem(problem_name, data_dir="data", results_dir="results", epochs=Non
     return final_metrics
 
 
-def run_all(problems=None, data_dir="data", results_dir="results", epochs=None, seed=None):
+def run_all(problems=None, data_dir="data", results_dir="results", epochs=None, seed=None, train_fractions=None):
     if problems is None:
         problems = ['A', 'B', 'C', 'D', 'E']
+    if train_fractions is None:
+        train_fractions = DEFAULT_TRAIN_FRACTIONS
+
+    train_fractions = [validate_train_fraction(train_fraction) for train_fraction in train_fractions]
 
     all_results = []
     for problem_name in problems:
-        result = run_problem(problem_name, data_dir=data_dir, results_dir=results_dir, epochs=epochs, seed=seed)
-        all_results.append(result)
+        problem_results = []
+        for train_fraction in train_fractions:
+            result = run_problem(
+                problem_name,
+                data_dir=data_dir,
+                results_dir=results_dir,
+                epochs=epochs,
+                seed=seed,
+                train_fraction=train_fraction
+            )
+            all_results.append(result)
+            problem_results.append(result)
+
+        problem_path = Path(results_dir) / str(problem_name).upper()
+        problem_path.mkdir(parents=True, exist_ok=True)
+        pd.DataFrame(problem_results).to_csv(problem_path / "summary.csv", index=False)
 
     results_path = Path(results_dir)
     results_path.mkdir(parents=True, exist_ok=True)
