@@ -39,6 +39,11 @@ def extract_points_from_grid(grid):
     points_array = np.argwhere(grid == 1)
     return [(p[0], p[1]) for p in points_array]
 
+
+def grid_key(grid):
+    return grid.tobytes()
+
+
 class DatasetValidator:
     def __init__(self, folder_name="data"):
         self.folder_name = folder_name
@@ -67,12 +72,36 @@ class DatasetValidator:
 
         return True
 
+    def check_duplicate_and_overlap(self, problem_name):
+        x_train, _ = self.load_split(problem_name, "train")
+        x_test, _ = self.load_split(problem_name, "test")
+
+        if x_train is None or x_test is None:
+            return False
+
+        train_keys = [grid_key(grid) for grid in x_train]
+        test_keys = [grid_key(grid) for grid in x_test]
+
+        train_duplicate_count = len(train_keys) - len(set(train_keys))
+        test_duplicate_count = len(test_keys) - len(set(test_keys))
+        overlap_count = len(set(train_keys) & set(test_keys))
+
+        if train_duplicate_count or test_duplicate_count or overlap_count:
+            print(f"  {Colors.RED}[ HATA ]{Colors.RESET} Problem {problem_name} içinde tekrar/kaçak veri bulundu.")
+            print(f"           Train tekrar: {train_duplicate_count}, Test tekrar: {test_duplicate_count}, Train/Test kesişim: {overlap_count}")
+            return False
+
+        return True
+
     def validate_problem(self, problem_name, validation_fn):
         test_name = f"DatasetValidation.Problem{problem_name}"
         gtest_run(test_name)
 
         problem_passed = True
         total_samples = 0
+
+        if not self.check_duplicate_and_overlap(problem_name):
+            problem_passed = False
 
         for split in ["train", "test"]:
             x_data, y_data = self.load_split(problem_name, split)

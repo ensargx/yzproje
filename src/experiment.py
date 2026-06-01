@@ -28,9 +28,9 @@ class ProblemConfig:
 
 
 PROBLEM_CONFIGS = {
-    'A': ProblemConfig('A', 'regression', 1024, 10000, 1000),
-    'B': ProblemConfig('B', 'regression', 1024, 10000, 1000),
-    'C': ProblemConfig('C', 'regression', 1024, 10000, 1000),
+    'A': ProblemConfig('A', 'regression', 1024, 5000, 200),
+    'B': ProblemConfig('B', 'regression', 1024, 5000, 200),
+    'C': ProblemConfig('C', 'regression', 1024, 5000, 200),
     'D': ProblemConfig('D', 'classification', 512, 1000, 100),
     'E': ProblemConfig('E', 'distance', 512, 1000, 100),
 }
@@ -138,7 +138,7 @@ def predict(model, x_data, task_type=None):
         sonuc = model(x_data)
 
     if task_type == "classification":
-        sonuc_tensor = sonuc.float().view(-1).int()
+        sonuc_tensor = (sonuc > 0.0).int().view(-1)
     else:
         sonuc_tensor = torch.round(sonuc).int().view(-1)
 

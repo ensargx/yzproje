@@ -161,10 +161,7 @@ class ProblemDCNN(nn.Module):
         pooled = torch.sum(attnOut * x, dim=1)
 
         out = self.mlp(pooled)
-        if self.training:
-            return out
-        else:
-            return (out > 0.0).float()
+        return out
 
 
 class ProblemECNN(nn.Module):
@@ -216,10 +213,7 @@ class ProblemECNN(nn.Module):
 
         final_out = self.distanceHead(pooledMax).squeeze(-1)
 
-        if self.training:
-            return final_out
-        else:
-            return torch.round(final_out)
+        return final_out
 
 
 def get_model(problem_name):

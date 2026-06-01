@@ -19,6 +19,10 @@ def get_points_at_exact_distance(center_point, target_dist):
                 points.append((nx, ny))
     return sorted(list(set(points)))
 
+
+def grid_key(grid):
+    return grid.tobytes()
+
 class TargetDrivenDatasetGenerator:
     def __init__(self, seed=SEED):
         self.grid_size = 25
@@ -162,6 +166,7 @@ class TargetDrivenDatasetGenerator:
             test_per_class = samples_per_class - train_per_class
 
         x_train, y_train, x_test, y_test = [], [], [], []
+        seen_samples = set()
 
         print(f"[{problem_name}] Sınırlar: {min_val}-{max_val} | Sınıf: {total_classes} | Train/Test Sınıf Başına: {train_per_class}/{test_per_class}")
 
@@ -179,8 +184,13 @@ class TargetDrivenDatasetGenerator:
                     sample = generator_fn(dist)
 
                 if sample is not None:
-                    class_samples.append(sample)
-                    fail_cnt = 0 
+                    key = grid_key(sample)
+                    if key not in seen_samples:
+                        class_samples.append(sample)
+                        seen_samples.add(key)
+                        fail_cnt = 0
+                    else:
+                        fail_cnt += 1
                 else:
                     fail_cnt += 1
 
@@ -221,13 +231,17 @@ class TargetDrivenDatasetGenerator:
 
         for num_points in range(1, total_classes + 1):
             class_samples = []
+            seen_samples = set()
             while len(class_samples) < samples_per_class:
                 grid = np.zeros((self.grid_size, self.grid_size), dtype=np.uint8)
                 indices = self.rng.choice(self.grid_size * self.grid_size, num_points, replace=False)
                 for idx in indices:
                     r, c = divmod(idx, self.grid_size)
                     grid[r, c] = 1
-                class_samples.append(grid)
+                key = grid_key(grid)
+                if key not in seen_samples:
+                    class_samples.append(grid)
+                    seen_samples.add(key)
 
             parity_label = num_points % 2
 

@@ -20,7 +20,7 @@ def parse_args():
         default=[0.25, 0.50, 1.00],
         help="Eğitim verisi oranları. Varsayılan: 0.25 0.50 1.00"
     )
-    parser.add_argument("--seed", type=int, default=11337, help="Tekrarlanabilirlik (reproducibility) için rastgelelik tohumu (seed)")
+    parser.add_argument("--seed", type=int, default=24, help="Tekrarlanabilirlik (reproducibility) için rastgelelik tohumu (seed)")
 
     return parser.parse_args()
 
