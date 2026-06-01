@@ -32,7 +32,7 @@ PROBLEM_CONFIGS = {
     'B': ProblemConfig('B', 'regression', 1024, 10000, 1000),
     'C': ProblemConfig('C', 'regression', 1024, 10000, 1000),
     'D': ProblemConfig('D', 'classification', 512, 1000, 100),
-    'E': ProblemConfig('E', 'distance', 512, 10000, 100),
+    'E': ProblemConfig('E', 'distance', 512, 1000, 100),
 }
 
 
@@ -338,7 +338,7 @@ def analyze_predictions(model, x_test, y_test, config, result_dir, random_sample
     }
 
 
-def run_problem(problem_name, data_dir="data", results_dir="results", epochs=None):
+def run_problem(problem_name, data_dir="data", results_dir="results", epochs=None, seed=None):
     config = get_config(problem_name)
     if epochs is not None:
         config = ProblemConfig(
@@ -348,6 +348,9 @@ def run_problem(problem_name, data_dir="data", results_dir="results", epochs=Non
             int(epochs),
             min(config.log_interval, max(1, int(epochs)))
         )
+
+    if seed:
+        torch.manual_seed(seed)
 
     result_dir = Path(results_dir) / config.problem_name
     result_dir.mkdir(parents=True, exist_ok=True)
@@ -393,13 +396,13 @@ def run_problem(problem_name, data_dir="data", results_dir="results", epochs=Non
     return final_metrics
 
 
-def run_all(problems=None, data_dir="data", results_dir="results", epochs=None):
+def run_all(problems=None, data_dir="data", results_dir="results", epochs=None, seed=None):
     if problems is None:
         problems = ['A', 'B', 'C', 'D', 'E']
 
     all_results = []
     for problem_name in problems:
-        result = run_problem(problem_name, data_dir=data_dir, results_dir=results_dir, epochs=epochs)
+        result = run_problem(problem_name, data_dir=data_dir, results_dir=results_dir, epochs=epochs, seed=seed)
         all_results.append(result)
 
     results_path = Path(results_dir)

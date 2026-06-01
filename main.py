@@ -1,9 +1,6 @@
 import argparse
 
-import torch
-
 from src.experiment import run_all
-
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Problem A-E modellerini eğit ve sonuçları kaydet.")
@@ -16,6 +13,7 @@ def parse_args():
     parser.add_argument("--data-dir", default="data", help="Veri seti klasörü")
     parser.add_argument("--results-dir", default="results", help="Sonuçların kaydedileceği klasör")
     parser.add_argument("--epochs", type=int, default=None, help="Test için tüm problemlerde epoch sayısını override eder")
+    parser.add_argument("--seed", type=int, default=11337, help="Tekrarlanabilirlik (reproducibility) için rastgelelik tohumu (seed)")
 
     return parser.parse_args()
 
@@ -23,13 +21,12 @@ def parse_args():
 def main():
     args = parse_args()
 
-    torch.manual_seed(11337)
-
     results = run_all(
         problems=args.problems,
         data_dir=args.data_dir,
         results_dir=args.results_dir,
         epochs=args.epochs,
+        seed=args.seed,
     )
 
     print("\n===== Tüm Sonuçlar =====")
